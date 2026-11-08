@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BatGAN Lab — GAN interactiva con Quick, Draw! (bat)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/estilos.css">
+  <!-- TensorFlow.js: la librería que entrena las redes neuronales directamente en el navegador -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+</head>
+<body>
+
+<!-- ================= BARRA SUPERIOR: controles de entrenamiento ================= -->
+<header class="barra">
+  <div class="marca">
+    <span class="logo">🦇</span>
+    <div>
+      <h1>BatGAN Lab</h1>
+      <p>Una GAN que aprende a dibujar murciélagos, en vivo en tu navegador</p>
+    </div>
+  </div>
+  <div class="categoria-chip" title="Categoría del dataset Quick, Draw! usada para entrenar">
+    Categoría usada: <strong>bat</strong> (murciélago) · Quick, Draw!
+  </div>
+  <div class="controles">
+    <button id="btnEntrenar" class="btn-play" disabled title="Entrenar / pausar">▶</button>
+    <button id="btnPaso" class="btn" disabled title="Un solo paso de entrenamiento">Paso +1</button>
+    <button id="btnReiniciar" class="btn" disabled title="Volver a crear las redes desde cero">↺ Reiniciar</button>
+    <div class="contador">
+      <span class="etq">Paso</span><span id="txtPaso">0</span>
+      <span class="etq">Época</span><span id="txtEpoca">0.00</span>
+    </div>
+    <label class="velocidad">Pasos por cuadro
+      <select id="selVelocidad">
+        <option value="1">1</option><option value="2" selected>2</option>
+        <option value="5">5</option><option value="10">10</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= 0. DATOS ================= -->
+<section class="tarjeta" id="seccionDatos">
+  <div class="tarjeta-titulo">
+    <h2><span class="num">0</span> Datos reales: murciélagos de Quick, Draw!</h2>
+    <span id="estadoDatos" class="estado">Sin datos cargados</span>
+  </div>
+  <div class="datos-grid">
+    <div>
+      <p class="ayuda">
+        Usamos el archivo <code>bat.npy</code> del dataset <a href="https://quickdraw.withgoogle.com/data" target="_blank" rel="noopener">Quick, Draw!</a>:
+        cada dibujo es una imagen de <b>28×28 píxeles</b> en escala de grises. Los valores (0–255) se normalizan a <b>[−1, 1]</b>
+        porque la última capa del generador usa <code>tanh</code>.
+      </p>
+      <div id="zonaArchivo" class="zona-archivo">
+        <p><b>Arrastra aquí <code>bat.npy</code></b> o</p>
+        <label class="btn btn-primario">Elegir archivo
+          <input type="file" id="inputArchivo" accept=".npy" hidden>
+        </label>
+        <button id="btnDescargar" class="btn">Descargar de Google</button>
+      </div>
+      <p class="ayuda pequeña">
+        ¿No lo tienes? Descárgalo de
+        <a href="https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/bat.npy" target="_blank" rel="noopener">storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/bat.npy</a>
+        o corre <code>python preparar_datos.py</code> en el repo.
+      </p>
+      <label class="campo">Dibujos a usar
+        <select id="selMuestras">
+          <option value="5000">5 000</option>
+          <option value="10000" selected>10 000</option>
+          <option value="20000">20 000</option>
+          <option value="40000">40 000</option>
+        </select>
+      </label>
+    </div>
+    <div class="centro">
+      <canvas id="cvReales" width="224" height="224" class="grilla"></canvas>
+      <p class="pie">Muestra de dibujos <b class="real">reales</b></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1. VISTA GENERAL DEL MODELO ================= -->
+<section class="tarjeta">
+  <div class="tarjeta-titulo"><h2><span class="num">1</span> Vista general del modelo</h2></div>
+  <svg id="diagrama" viewBox="0 0 960 282" class="diagrama" role="img" aria-label="Diagrama de la GAN">
+    <defs>
+      <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+      </marker>
+    </defs>
+    <!-- ruido z -->
+    <g class="nodo">
+      <rect x="10" y="40" width="110" height="64" rx="10" class="caja-ruido"/>
+      <text x="65" y="64" text-anchor="middle" class="t1">Ruido z</text>
+      <text x="65" y="83" text-anchor="middle" class="t2" id="dgZ">100 valores</text>
+      <text x="65" y="98" text-anchor="middle" class="t3">~ N(0, 1)</text>
+    </g>
+    <line x1="120" y1="72" x2="180" y2="72" class="linea" marker-end="url(#flecha)"/>
+    <!-- generador -->
+    <g class="nodo clic" data-ir="panelG">
+      <rect x="182" y="30" width="170" height="84" rx="12" class="caja-g"/>
+      <text x="267" y="62" text-anchor="middle" class="t1 blanco">GENERADOR  G</text>
+      <text x="267" y="84" text-anchor="middle" class="t2 blanco" id="dgG">— parámetros</text>
+      <text x="267" y="102" text-anchor="middle" class="t3 blanco">clic para ver ↓</text>
+    </g>
+    <line x1="352" y1="72" x2="420" y2="72" class="linea" marker-end="url(#flecha)"/>
+    <!-- imagen falsa -->
+    <g>
+      <rect x="422" y="30" width="96" height="84" rx="10" class="caja-falso"/>
+      <foreignObject x="436" y="36" width="68" height="56"><canvas xmlns="http://www.w3.org/1999/xhtml" id="cvDiagFalso" width="56" height="56" class="mini"></canvas></foreignObject>
+      <text x="470" y="108" text-anchor="middle" class="t3">G(z) falso</text>
+    </g>
+    <!-- imagen real -->
+    <g>
+      <rect x="422" y="136" width="96" height="84" rx="10" class="caja-real"/>
+      <foreignObject x="436" y="142" width="68" height="56"><canvas xmlns="http://www.w3.org/1999/xhtml" id="cvDiagReal" width="56" height="56" class="mini"></canvas></foreignObject>
+      <text x="470" y="214" text-anchor="middle" class="t3">x real (bat)</text>
+    </g>
+    <line x1="518" y1="72" x2="590" y2="110" class="linea" marker-end="url(#flecha)"/>
+    <line x1="518" y1="178" x2="590" y2="134" class="linea" marker-end="url(#flecha)"/>
+    <!-- discriminador -->
+    <g class="nodo clic" data-ir="panelD">
+      <rect x="592" y="80" width="180" height="84" rx="12" class="caja-d"/>
+      <text x="682" y="112" text-anchor="middle" class="t1 blanco">DISCRIMINADOR  D</text>
+      <text x="682" y="134" text-anchor="middle" class="t2 blanco" id="dgD">— parámetros</text>
+      <text x="682" y="152" text-anchor="middle" class="t3 blanco">clic para ver ↓</text>
+    </g>
+    <line x1="772" y1="122" x2="822" y2="122" class="linea" marker-end="url(#flecha)"/>
+    <!-- pérdidas -->
+    <g class="nodo clic" data-ir="panelL">
+      <rect x="824" y="70" width="126" height="104" rx="12" class="caja-l"/>
+      <text x="887" y="96" text-anchor="middle" class="t1">Pérdidas</text>
+      <text x="887" y="120" text-anchor="middle" class="t3" id="dgLD">L_D = —</text>
+      <text x="887" y="140" text-anchor="middle" class="t3" id="dgLG">L_G = —</text>
+      <text x="887" y="160" text-anchor="middle" class="t3" id="dgTipo">no saturante</text>
+    </g>
+    <!-- flechas de retroalimentación (gradientes) -->
+    <path d="M887,174 C887,272 267,272 267,116" class="grad" marker-end="url(#flecha)"/>
+    <text x="560" y="276" text-anchor="middle" class="t3 rosa">gradientes ∇ actualizan G (para engañar a D)</text>
+    <path d="M860,70 C860,20 700,20 690,78" class="grad" marker-end="url(#flecha)"/>
+    <text x="720" y="26" class="t3 rosa">gradientes ∇ actualizan D</text>
+  </svg>
+  <p class="ayuda">
+    El <b class="falso">generador</b> convierte ruido aleatorio en un dibujo. El <b class="real">discriminador</b> recibe dibujos reales y falsos
+    y dice qué tan "real" le parece cada uno. Las <b>funciones de pérdida</b> miden qué tan bien lo hace cada red, y sus gradientes
+    ajustan los pesos: D aprende a detectar falsos y G aprende a engañar a D.
+  </p>
+</section>
+
+<!-- ================= 2. LAS TRES COLUMNAS: G · D · PÉRDIDAS ================= -->
+<div class="columnas">
+
+  <!-- ---------- PANEL GENERADOR ---------- -->
+  <section class="tarjeta panel-g" id="panelG">
+    <div class="tarjeta-titulo"><h2><span class="num g">2</span> Red neuronal Generadora</h2></div>
+    <p class="ayuda">Recibe un vector de ruido <b>z</b> y lo "desdobla" con capas de convolución transpuesta hasta una imagen de 28×28.</p>
+
+    <h3>Hiperparámetros</h3>
+    <div class="params">
+      <label>Dimensión latente (z)
+        <select id="gDimLatente" data-reinicia="1"><option>16</option><option>32</option><option>64</option><option selected>100</option><option>128</option></select>
+      </label>
+      <label>Filtros base
+        <select id="gFiltros" data-reinicia="1"><option>16</option><option selected>32</option><option>64</option></select>
+      </label>
+      <label>Optimizador
+        <select id="gOpt"><option value="adam" selected>Adam</option><option value="rmsprop">RMSprop</option><option value="sgd">SGD</option></select>
+      </label>
+      <label>Tasa de aprendizaje
+        <select id="gLR"><option>0.00005</option><option>0.0001</option><option selected>0.0002</option><option>0.0005</option><option>0.001</option></select>
+      </label>
+      <label>β1 (Adam)
+        <select id="gBeta1"><option>0.0</option><option selected>0.5</option><option>0.9</option></select>
+      </label>
+      <label>Tamaño de lote
+        <select id="tamLote"><option>32</option><option selected>64</option><option>128</option></select>
+      </label>
+    </div>
+
+    <h3>Arquitectura <span class="total" id="gTotal"></span></h3>
+    <table class="capas" id="tablaG"></table>
+
+    <h3>Valores de los pesos</h3>
+    <div class="fila-sel">
+      <label>Capa <select id="gCapa"></select></label>
+      <span class="stats" id="gStats"></span>
+    </div>
+    <canvas id="cvHistG" width="400" height="110" class="hist"></canvas>
+    <p class="pie" id="gFiltrosTxt">Filtros (kernels) de la capa</p>
+    <canvas id="cvFiltrosG" width="400" height="104" class="filtros"></canvas>
+  </section>
+
+  <!-- ---------- PANEL DISCRIMINADOR ---------- -->
+  <section class="tarjeta panel-d" id="panelD">
+    <div class="tarjeta-titulo"><h2><span class="num d">3</span> Red neuronal Discriminadora</h2></div>
+    <p class="ayuda">Una red convolucional que comprime la imagen hasta un solo número: su "opinión" de si el dibujo es real.</p>
+
+    <h3>Hiperparámetros</h3>
+    <div class="params">
+      <label>Filtros base
+        <select id="dFiltros" data-reinicia="1"><option>16</option><option selected>32</option><option>64</option></select>
+      </label>
+      <label>Dropout
+        <select id="dDropout" data-reinicia="1"><option>0</option><option selected>0.3</option><option>0.5</option></select>
+      </label>
+      <label>Optimizador
+        <select id="dOpt"><option value="adam" selected>Adam</option><option value="rmsprop">RMSprop</option><option value="sgd">SGD</option></select>
+      </label>
+      <label>Tasa de aprendizaje
+        <select id="dLR"><option>0.00005</option><option>0.0001</option><option selected>0.0002</option><option>0.0005</option><option>0.001</option></select>
+      </label>
+      <label>β1 (Adam)
+        <select id="dBeta1"><option>0.0</option><option selected>0.5</option><option>0.9</option></select>
+      </label>
+      <label>Pasos de D por paso de G
+        <select id="dPasos"><option selected>1</option><option>2</option><option>3</option><option>5</option></select>
+      </label>
+    </div>
+
+    <h3>Arquitectura <span class="total" id="dTotal"></span></h3>
+    <table class="capas" id="tablaD"></table>
+
+    <h3>Valores de los pesos</h3>
+    <div class="fila-sel">
+      <label>Capa <select id="dCapa"></select></label>
+      <span class="stats" id="dStats"></span>
+    </div>
+    <canvas id="cvHistD" width="400" height="110" class="hist"></canvas>
+    <p class="pie" id="dFiltrosTxt">Filtros (kernels) de la capa</p>
+    <canvas id="cvFiltrosD" width="400" height="104" class="filtros"></canvas>
+  </section>
+
+  <!-- ---------- PANEL PÉRDIDAS ---------- -->
+  <section class="tarjeta panel-l" id="panelL">
+    <div class="tarjeta-titulo"><h2><span class="num l">4</span> Funciones de pérdida</h2></div>
+    <label class="campo">Función de pérdida
+      <select id="selPerdida">
+        <option value="no_saturante" selected>No saturante (estándar)</option>
+        <option value="minimax">Minimax (GAN original)</option>
+        <option value="lsgan">Mínimos cuadrados (LSGAN)</option>
+        <option value="wasserstein">Wasserstein (WGAN)</option>
+      </select>
+    </label>
+    <div class="formulas" id="formulas"></div>
+    <p class="ayuda" id="explicacionPerdida"></p>
+    <p class="nota" id="notaPerdida"></p>
+
+    <h3>Valores en este paso</h3>
+    <div class="metricas">
+      <div class="metrica d"><span>Pérdida D</span><b id="mLD">—</b></div>
+      <div class="metrica g"><span>Pérdida G</span><b id="mLG">—</b></div>
+      <div class="metrica d"><span id="etqDx">D(x) reales</span><b id="mDx">—</b></div>
+      <div class="metrica g"><span id="etqDgz">D(G(z)) falsos</span><b id="mDgz">—</b></div>
+    </div>
+
+    <h3>Pérdidas durante el entrenamiento</h3>
+    <canvas id="cvPerdidas" width="400" height="170" class="curva"></canvas>
+    <h3 id="tituloPuntajes">Opinión de D: reales vs falsos</h3>
+    <canvas id="cvPuntajes" width="400" height="150" class="curva"></canvas>
+  </section>
+</div>
+
+<!-- ================= 5. RECORRIDO DE UNA MUESTRA (activaciones) ================= -->
+<section class="tarjeta">
+  <div class="tarjeta-titulo">
+    <h2><span class="num">5</span> Recorrido de una muestra por las dos redes</h2>
+    <button id="btnNuevaMuestra" class="btn" disabled>🎲 Otro z</button>
+  </div>
+  <p class="ayuda">Así se ven los <b>valores internos</b> (activaciones) de cada capa cuando un vector de ruido atraviesa el generador
+    y luego el dibujo resultante atraviesa el discriminador. Se muestran hasta 8 canales por capa.</p>
+  <div id="recorrido" class="recorrido"><p class="vacio">Carga los datos para ver el recorrido.</p></div>
+</section>
+
+<!-- ================= 6. RESULTADO DE LA GAN ================= -->
+<section class="tarjeta" id="seccionResultado">
+  <div class="tarjeta-titulo">
+    <h2><span class="num">6</span> Resultado de la GAN — categoría <span class="chip-bat">bat 🦇</span></h2>
+    <button id="btnMuestrasNuevas" class="btn" disabled>🎲 Ruido nuevo</button>
+  </div>
+  <div class="resultado-grid">
+    <div class="centro">
+      <canvas id="cvFalsos" width="336" height="336" class="grilla grande"></canvas>
+      <p class="pie">Dibujos <b class="falso">generados</b> por G. El borde indica qué tan reales le parecen a D
+        (<span class="real">verde = real</span>, <span class="falso">morado = falso</span>).</p>
+    </div>
+    <div>
+      <h3>Evolución durante el entrenamiento</h3>
+      <div id="historial" class="historial"><p class="vacio">Aquí aparecen capturas cada 100 pasos.</p></div>
+      <h3>Interpolación en el espacio latente</h3>
+      <p class="ayuda pequeña">Mezclamos dos vectores z y vemos cómo un murciélago se transforma en otro: señal de que G aprendió un espacio continuo.</p>
+      <canvas id="cvInterp" width="560" height="56" class="tira"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7. CÓDIGO ================= -->
+<section class="tarjeta">
+  <div class="tarjeta-titulo"><h2><span class="num">7</span> Código fuente (comentado)</h2></div>
+  <p class="ayuda">Este es el código que se está ejecutando en esta página, leído en vivo. En el repositorio está en <code>js/</code>.</p>
+  <div class="pestanas" id="pestanasCodigo">
+    <button data-fn="crearGenerador" class="activa">generador.js</button>
+    <button data-fn="crearDiscriminador">discriminador.js</button>
+    <button data-fn="definirPerdidas">perdidas.js</button>
+    <button data-fn="pasoEntrenamiento">entrenamiento.js</button>
+  </div>
+  <pre class="codigo" id="codigo"></pre>
+</section>
+
+<footer>
+  Datos: <a href="https://quickdraw.withgoogle.com/data" target="_blank" rel="noopener">The Quick, Draw! Dataset</a> (Google, CC BY 4.0) ·
+  Inspirado en <a href="https://poloclub.github.io/ganlab/" target="_blank" rel="noopener">GAN Lab</a> (Georgia Tech &amp; Google PAIR) ·
+  Teoría: <a href="https://developers.google.com/machine-learning/gan?hl=es-419" target="_blank" rel="noopener">Curso de GAN de Google</a>
+</footer>
+</main>
+
+<!-- Overlay de error / mensajes -->
+<div id="toast" class="toast" hidden></div>
+
+<!-- Orden de carga: primero los módulos de la GAN, al final la interfaz -->
+<script src="js/datos.js"></script>
+<script src="js/generador.js"></script>
+<script src="js/discriminador.js"></script>
+<script src="js/perdidas.js"></script>
+<script src="js/entrenamiento.js"></script>
+<script src="js/visualizacion.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

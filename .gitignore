@@ -1,0 +1,3 @@
+# El archivo RAW completo pesa ~566 MB: no subirlo al repo
+*.ndjson
+__pycache__/
