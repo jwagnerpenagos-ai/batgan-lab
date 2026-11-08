@@ -27,7 +27,9 @@ function pasoEntrenamiento(e) {
   const { G, D, cfg, perdida } = e;
   const varsD = D.trainableWeights.map(w => w.val);   // pesos que cambia la fase 1
   const varsG = G.trainableWeights.map(w => w.val);   // pesos que cambia la fase 2
-  let perdidaD = 0, puntajeReal = 0, puntajeFalso = 0;
+  // Los valores de cada fase se guardan como tensores y se leen de la GPU
+  // UNA sola vez al final (leer de la GPU es lo más lento de todo el paso).
+  let perdidaD = null, puntajeReal = null, puntajeFalso = null;
 
   // ---------------- FASE 1: entrenar el DISCRIMINADOR ----------------
   for (let k = 0; k < cfg.pasosD; k++) {
@@ -39,13 +41,13 @@ function pasoEntrenamiento(e) {
       const costo = e.optD.minimize(() => {
         const logitsReales = D.apply(reales, { training: true });    // D(x)
         const logitsFalsos = D.apply(falsos, { training: true });    // D(G(z))
+        // tf.keep: minimize() limpia los tensores intermedios; estos los necesitamos después
         pr = tf.keep(tf.mean(perdida.puntaje(logitsReales)));
         pf = tf.keep(tf.mean(perdida.puntaje(logitsFalsos)));
         return perdida.perdidaD(logitsReales, logitsFalsos);         // L_D
       }, true, varsD);                                               // ← solo pesos de D
-      perdidaD = costo.dataSync()[0];
-      puntajeReal = pr.dataSync()[0]; puntajeFalso = pf.dataSync()[0];
-      pr.dispose(); pf.dispose();
+      [perdidaD, puntajeReal, puntajeFalso].forEach(t => t && t.dispose());
+      perdidaD = tf.keep(costo); puntajeReal = tf.keep(pr); puntajeFalso = tf.keep(pf);
 
       // Solo WGAN: recortar los pesos de D para mantenerlo 1-Lipschitz
       if (perdida.recortePesosD) {
@@ -56,17 +58,19 @@ function pasoEntrenamiento(e) {
   }
 
   // ---------------- FASE 2: entrenar el GENERADOR ----------------
-  let perdidaG = 0;
-  tf.tidy(() => {
+  const perdidaG = tf.tidy(() => {
     const z = tf.randomNormal([cfg.tamLote, cfg.dimLatente]);
-    const costo = e.optG.minimize(() => {
+    return e.optG.minimize(() => {
       const falsos = G.apply(z, { training: true });                 // G(z)
       const logitsFalsos = D.apply(falsos, { training: true });      // D(G(z))
       return perdida.perdidaG(logitsFalsos);                         // L_G
     }, true, varsG);                                                 // ← solo pesos de G
-    perdidaG = costo.dataSync()[0];
   });
 
-  // Valores que la interfaz grafica en cada paso
-  return { perdidaD, perdidaG, puntajeReal, puntajeFalso };
+  // Una sola lectura GPU → CPU con los 4 valores que la interfaz grafica
+  const todos = [perdidaD, perdidaG, puntajeReal, puntajeFalso];
+  const apilados = tf.tidy(() => tf.stack(todos.map(t => t.reshape([]))));
+  const v = apilados.dataSync();
+  apilados.dispose(); todos.forEach(t => t.dispose());
+  return { perdidaD: v[0], perdidaG: v[1], puntajeReal: v[2], puntajeFalso: v[3] };
 }

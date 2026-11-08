@@ -19,7 +19,7 @@
     <span class="logo">🦇</span>
     <div>
       <h1>BatGAN Lab</h1>
-      <p>Una GAN que aprende a dibujar murciélagos, en vivo en tu navegador</p>
+      <p>Una DCGAN que aprende a dibujar murciélagos · PyTorch + laboratorio en vivo</p>
     </div>
   </div>
   <div class="categoria-chip" title="Categoría del dataset Quick, Draw! usada para entrenar">
@@ -43,6 +43,53 @@
 </header>
 
 <main>
+
+<!-- ================= RESULTADO DEL ENTRENAMIENTO EN PYTHON (gan.py) ================= -->
+<section class="tarjeta destacada" id="seccionPython">
+  <div class="tarjeta-titulo">
+    <h2><span class="num">★</span> Resultado de la GAN entrenada en Python — categoría <span class="chip-bat">bat 🦇</span></h2>
+    <span class="estado ok" id="pyMeta">gan.py</span>
+  </div>
+  <p class="ayuda">Estos resultados los produjo <code>gan.py</code> (PyTorch): ahí están la <b>red generadora</b> (<code>class Generador</code>),
+    la <b>red discriminadora</b> (<code>class Discriminador</code>) y las <b>funciones de pérdida</b>, todo comentado.
+    Más abajo está el <a href="#laboratorio">laboratorio interactivo</a> para entrenar la misma arquitectura en vivo.</p>
+  <div id="pyVacio" class="nota" hidden>Aún no hay resultados: corre <code>python gan.py</code> en la carpeta del proyecto y recarga la página.</div>
+  <div id="pyContenido">
+    <div class="py-imagenes">
+      <figure><img id="pyReales" alt="Dibujos reales de murciélagos"><figcaption>Dibujos <b class="real">reales</b> (Quick, Draw!)</figcaption></figure>
+      <figure><img id="pyEpoca" alt="Dibujos generados en la época elegida">
+        <figcaption>Dibujos <b class="falso">generados</b> en la época <b id="pyEpocaTxt">—</b> (mismo ruido z en todas las épocas)</figcaption>
+        <input type="range" id="pySlider" min="1" max="1" value="1" class="slider">
+        <button id="pyAnimar" class="btn">▶ Animar épocas</button>
+      </figure>
+    </div>
+    <div class="py-graficas">
+      <div><h3>Funciones de pérdida durante el entrenamiento</h3><canvas id="pyPerdidas" width="560" height="200" class="curva"></canvas></div>
+      <div><h3>Valores del discriminador: D(x) y D(G(z))</h3><canvas id="pyPuntajes" width="560" height="200" class="curva"></canvas>
+        <p class="pie">D(x) es la probabilidad que D le da a los dibujos reales; D(G(z)), la que le da a los falsos. En el equilibrio ideal ambas tienden a 0.5.</p></div>
+    </div>
+    <h3>Valores por época</h3>
+    <div class="tabla-scroll"><table class="capas" id="pyTablaEpocas"></table></div>
+    <div class="py-redes">
+      <div class="panel-g tarjeta-interna">
+        <h3>Red Generadora (G) · <span id="pyTotalG"></span></h3>
+        <table class="capas" id="pyCapasG"></table>
+        <h3>Valores de los pesos <span class="pie">(clic en una fila para ver su histograma)</span></h3>
+        <table class="capas pesos" id="pyPesosG"></table>
+        <canvas id="pyHistG" width="520" height="110" class="hist"></canvas>
+      </div>
+      <div class="panel-d tarjeta-interna">
+        <h3>Red Discriminadora (D) · <span id="pyTotalD"></span></h3>
+        <table class="capas" id="pyCapasD"></table>
+        <h3>Valores de los pesos <span class="pie">(clic en una fila para ver su histograma)</span></h3>
+        <table class="capas pesos" id="pyPesosD"></table>
+        <canvas id="pyHistD" width="520" height="110" class="hist"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<h2 class="separador" id="laboratorio">🧪 Laboratorio interactivo: entrena la misma GAN en vivo en tu navegador</h2>
 
 <!-- ================= 0. DATOS ================= -->
 <section class="tarjeta" id="seccionDatos">
@@ -330,5 +377,8 @@
 <script src="js/entrenamiento.js"></script>
 <script src="js/visualizacion.js"></script>
 <script src="js/app.js"></script>
+<!-- Resultados exportados por gan.py (si no existen, la sección indica cómo generarlos) -->
+<script src="resultados/resultados.js"></script>
+<script src="js/resultados.js"></script>
 </body>
 </html>

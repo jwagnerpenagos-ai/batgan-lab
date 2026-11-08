@@ -1,8 +1,13 @@
 # 🦇 BatGAN Lab
 
-**Una Red Generativa Adversaria (GAN) interactiva que aprende a dibujar murciélagos, entrenada en vivo en el navegador.**
+**Una Red Generativa Adversaria convolucional (DCGAN) que aprende a dibujar murciélagos.**
 
-Proyecto de IA Generativa, inspirado en [GAN Lab](https://poloclub.github.io/ganlab/) (Georgia Tech + Google PAIR). La diferencia es que, en vez de puntos en 2D, esta GAN genera **dibujos reales de 28×28 píxeles** usando el dataset [Quick, Draw!](https://quickdraw.withgoogle.com/data) de Google.
+Proyecto de IA Generativa. Tiene dos partes:
+
+1. **`gan.py` (PyTorch)**: el modelo completo y comentado. Crea la red generadora y la discriminadora, define las funciones de pérdida, entrena y exporta los resultados a `resultados/`.
+2. **La página web (`index.html`)**: muestra los resultados de `gan.py` (dibujos por época, pérdidas, D(x), D(G(z)), arquitectura y valores de los pesos) y además trae un **laboratorio interactivo**, inspirado en [GAN Lab](https://poloclub.github.io/ganlab/), para entrenar la misma arquitectura en vivo con TensorFlow.js.
+
+Datos: dataset [Quick, Draw!](https://quickdraw.withgoogle.com/data) de Google.
 
 > **Categoría usada: `bat` (murciélago)**: 20 000 dibujos del archivo RAW `full_raw_bat.ndjson`.
 
@@ -22,6 +27,24 @@ Proyecto de IA Generativa, inspirado en [GAN Lab](https://poloclub.github.io/gan
 | **7 · Código fuente** | El código que se está ejecutando, con comentarios, leído en vivo desde la página. |
 
 ## ¿Dónde se crea cada red neuronal?
+
+### En `gan.py` (modelo principal)
+
+| Componente | Dónde |
+|---|---|
+| **Red Generadora (G)** | `class Generador(nn.Module)`, sección 3 |
+| **Red Discriminadora (D)** | `class Discriminador(nn.Module)`, sección 4 |
+| **Funciones de pérdida** | `perdida_discriminador()` y `perdida_generador()`, sección 5 |
+| **Instanciación** | `G = Generador(...)` y `D = Discriminador(...)`, sección 6 |
+| **Entrenamiento** | sección 7 (fase 1: D, fase 2: G) |
+
+```bash
+pip install torch numpy pillow
+python gan.py                          # 15 épocas, pérdida no saturante (~5 min en CPU)
+python gan.py --epocas 30 --perdida lsgan
+```
+
+### En el laboratorio web (JavaScript)
 
 | Componente | Archivo | Función |
 |---|---|---|
@@ -87,6 +110,8 @@ El script toma cada dibujo (trazos x, y, t), lo centra y escala en un lienzo de 
 
 ```
 batgan-lab/
+├── gan.py                # ← MODELO PRINCIPAL en PyTorch (G, D, pérdidas, entrenamiento)
+├── resultados/           # lo que exporta gan.py: resultados.js, img/epoca_XX.png, modelos.pt
 ├── index.html            # página principal
 ├── css/estilos.css
 ├── js/
@@ -96,6 +121,7 @@ batgan-lab/
 │   ├── perdidas.js       # ← FUNCIONES DE PÉRDIDA
 │   ├── entrenamiento.js  # optimizadores y paso de entrenamiento
 │   ├── visualizacion.js  # grillas, curvas, histogramas y filtros en canvas
+│   ├── resultados.js     # muestra los resultados de gan.py
 │   └── app.js            # interfaz
 ├── data/bat_28x28.npy    # 20 000 murciélagos 28×28 (uint8)
 └── preparar_datos.py     # RAW .ndjson → .npy
