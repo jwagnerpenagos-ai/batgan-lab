@@ -25,7 +25,11 @@
   <div class="categoria-chip" title="Categoría del dataset Quick, Draw! usada para entrenar">
     Categoría usada: <strong>bat</strong> (murciélago) · Quick, Draw!
   </div>
-  <div class="controles">
+  <nav class="pestanas-vista" aria-label="Secciones">
+    <a href="#resultado" data-vista="resultado" class="activa">🦇 Resultado</a>
+    <a href="#laboratorio" data-vista="laboratorio">🧪 Laboratorio en vivo</a>
+  </nav>
+  <div class="controles solo-lab">
     <button id="btnEntrenar" class="btn-play" disabled title="Entrenar / pausar">▶</button>
     <button id="btnPaso" class="btn" disabled title="Un solo paso de entrenamiento">Paso +1</button>
     <button id="btnReiniciar" class="btn" disabled title="Volver a crear las redes desde cero">↺ Reiniciar</button>
@@ -44,6 +48,8 @@
 
 <main>
 
+<!-- ======================= VISTA 1: RESULTADO (gan.py) ======================= -->
+<div class="vista" id="vista-resultado">
 <!-- ================= RESULTADO DEL ENTRENAMIENTO EN PYTHON (gan.py) ================= -->
 <section class="tarjeta destacada" id="seccionPython">
   <div class="tarjeta-titulo">
@@ -52,7 +58,7 @@
   </div>
   <p class="ayuda">Estos resultados los produjo <code>gan.py</code> (PyTorch): ahí están la <b>red generadora</b> (<code>class Generador</code>),
     la <b>red discriminadora</b> (<code>class Discriminador</code>) y las <b>funciones de pérdida</b>, todo comentado.
-    Más abajo está el <a href="#laboratorio">laboratorio interactivo</a> para entrenar la misma arquitectura en vivo.</p>
+    En la pestaña <a href="#laboratorio">🧪 Laboratorio en vivo</a> puedes entrenar la misma arquitectura en tu navegador.</p>
   <div id="pyVacio" class="nota" hidden>Aún no hay resultados: corre <code>python gan.py</code> en la carpeta del proyecto y recarga la página.</div>
   <div id="pyContenido">
     <div class="py-imagenes">
@@ -68,8 +74,10 @@
       <div><h3>Valores del discriminador: D(x) y D(G(z))</h3><canvas id="pyPuntajes" width="560" height="200" class="curva"></canvas>
         <p class="pie">D(x) es la probabilidad que D le da a los dibujos reales; D(G(z)), la que le da a los falsos. En el equilibrio ideal ambas tienden a 0.5.</p></div>
     </div>
-    <h3>Valores por época</h3>
-    <div class="tabla-scroll"><table class="capas" id="pyTablaEpocas"></table></div>
+    <details class="plegable">
+      <summary>Ver la tabla de valores por época (clic en una fila para ver sus dibujos)</summary>
+      <div class="tabla-scroll"><table class="capas" id="pyTablaEpocas"></table></div>
+    </details>
     <div class="py-redes">
       <div class="panel-g tarjeta-interna">
         <h3>Red Generadora (G) · <span id="pyTotalG"></span></h3>
@@ -89,7 +97,12 @@
   </div>
 </section>
 
-<h2 class="separador" id="laboratorio">🧪 Laboratorio interactivo: entrena la misma GAN en vivo en tu navegador</h2>
+</div>
+
+<!-- ======================= VISTA 2: LABORATORIO EN VIVO ======================= -->
+<div class="vista" id="vista-laboratorio" hidden>
+<p class="intro-lab">🧪 <b>Laboratorio interactivo:</b> la misma GAN (misma arquitectura que <code>gan.py</code>) reescrita en TensorFlow.js
+  para entrenarla <b>en vivo</b> en tu navegador. Dale ▶ arriba y mira cómo cambian los parámetros, las pérdidas y los dibujos.</p>
 
 <!-- ================= 0. DATOS ================= -->
 <section class="tarjeta" id="seccionDatos">
@@ -358,6 +371,8 @@
   </div>
   <pre class="codigo" id="codigo"></pre>
 </section>
+
+</div>
 
 <footer>
   Datos: <a href="https://quickdraw.withgoogle.com/data" target="_blank" rel="noopener">The Quick, Draw! Dataset</a> (Google, CC BY 4.0) ·

@@ -187,3 +187,14 @@ footer { text-align: center; color: var(--suave); font-size: 12px; padding: 10px
 table.pesos tr.elegida { background: #fef3c7; }
 @media (max-width: 1100px) { .py-graficas, .py-redes { grid-template-columns: 1fr; } }
 #pyTablaEpocas th:not(:first-child), table.pesos th:nth-child(n+3), table.capas th:last-child { text-align: right; }
+
+/* ---------- pestañas de vista ---------- */
+.pestanas-vista { display: flex; gap: 4px; background: #1f2937; padding: 4px; border-radius: 12px; }
+.pestanas-vista a { color: #d1d5db; text-decoration: none; padding: 7px 14px; border-radius: 9px; font-weight: 600; font-size: 13.5px; }
+.pestanas-vista a:hover { color: #fff; }
+.pestanas-vista a.activa { background: #fbbf24; color: #111827; }
+body:not([data-vista="laboratorio"]) .solo-lab { display: none; }
+.vista { display: flex; flex-direction: column; gap: 20px; }
+.vista[hidden] { display: none; }
+.intro-lab { margin: 0; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 12px 16px; color: #3730a3; }
+.plegable summary { cursor: pointer; font-size: 13px; color: var(--falso); font-weight: 600; margin: 14px 0 8px; }

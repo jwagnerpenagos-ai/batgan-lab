@@ -77,3 +77,19 @@
     elegir(nombres[0]);
   });
 })();
+
+/* ---------- Pestañas: #resultado (por defecto) y #laboratorio ---------- */
+(function pestanas() {
+  const VISTAS = ['resultado', 'laboratorio'];
+  function mostrar() {
+    const actual = VISTAS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'resultado';
+    VISTAS.forEach(v => { document.getElementById('vista-' + v).hidden = v !== actual; });
+    document.querySelectorAll('.pestanas-vista a').forEach(a => a.classList.toggle('activa', a.dataset.vista === actual));
+    document.body.dataset.vista = actual;   // el CSS oculta los controles de entrenamiento fuera del laboratorio
+    // Al salir del laboratorio se pausa el entrenamiento en vivo
+    if (actual !== 'laboratorio' && typeof pausar === 'function' && typeof estado !== 'undefined' && estado.entrenando) pausar();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', mostrar);
+  mostrar();
+})();
